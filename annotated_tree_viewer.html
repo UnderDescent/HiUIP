@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Annotated Tree Viewer</title>
+<style>
+  body { margin: 0; font-family: -apple-system, sans-serif; display: flex; height: 100vh; background: #1a1a1a; color: #eee; }
+  #sidebar { width: 300px; padding: 16px; overflow-y: auto; background: #222; box-sizing: border-box; }
+  #canvasWrap { flex: 1; overflow: auto; position: relative; }
+  canvas { display: block; }
+  input[type=file] { display: block; margin-bottom: 10px; width: 100%; }
+  label { display: block; margin: 4px 0; cursor: pointer; font-size: 13px; }
+  #info { margin-top: 16px; font-size: 12px; white-space: pre-wrap; background: #111; padding: 8px; border-radius: 4px; max-height: 260px; overflow-y: auto; }
+  #legend { margin-top: 14px; font-size: 12px; }
+  .swatch { display:inline-block; width:12px; height:12px; margin-right:6px; vertical-align:middle; border-radius:2px; }
+  input[type=range] { width: 100%; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <div>Screenshot: <input type="file" id="imgInput" accept="image/*"></div>
+  <div>Tree JSON: <input type="file" id="jsonInput" accept=".json"></div>
+  <div>Fill opacity: <input type="range" id="alphaSlider" min="0" max="80" value="35"></div>
+  <div id="depthControls"></div>
+  <div id="legend"></div>
+  <div id="stats" style="font-size:12px;color:#aaa;margin-top:10px;"></div>
+  <div id="info">Click a box to inspect it.</div>
+</div>
+<div id="canvasWrap"><canvas id="canvas"></canvas></div>
+<script>
+let img = null, tree = null;
+const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+let visibleDepths = new Set();
+let fillAlpha = 0.35;
+
+// Hue per depth level (cycles every 5 levels)
+const DEPTH_HUES = [210, 130, 40, 0, 280]; // blue, green, orange, red, purple
+
+document.getElementById('alphaSlider').oninput = e => {
+  fillAlpha = e.target.value / 100;
+  draw();
+};
+
+document.getElementById('imgInput').onchange = e => {
+  const reader = new FileReader();
+  reader.onload = ev => { img = new Image(); img.onload = draw; img.src = ev.target.result; };
+  reader.readAsDataURL(e.target.files[0]);
+};
+
+document.getElementById('jsonInput').onchange = e => {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    tree = JSON.parse(ev.target.result);
+    assignPaths(tree, []);
+    setupControls();
+    draw();
+  };
+  reader.readAsText(e.target.files[0]);
+};
+
+// Give every node a stable path (sequence of sibling indices from root) --
+// used to derive a per-branch shade so cousins look different.
+function assignPaths(node, path) {
+  node._path = path;
+  (node.children || []).forEach((c, i) => assignPaths(c, [...path, i]));
+}
+
+function maxDepth(node, d=0) {
+  if (!node.children || node.children.length === 0) return d;
+  return Math.max(...node.children.map(c => maxDepth(c, d+1)));
+}
+function countNodes(node) {
+  if (!node) return 0;
+  return 1 + (node.children||[]).reduce((s,c)=>s+countNodes(c),0);
+}
+
+// Hash a path array to a stable 0..1 value for shade variation
+function pathHash(path) {
+  let h = 0;
+  for (const p of path) h = (h * 31 + p + 7) % 997;
+  return (h % 100) / 100;
+}
+
+function colorForNode(node, depth) {
+  const hue = DEPTH_HUES[depth % DEPTH_HUES.length];
+  // Use the ancestor path (excluding the last index) so all nodes under
+  // the same top-level branch share a family shade, and cousins differ.
+  const branchKey = node._path.slice(0, Math.min(node._path.length, depth || 1));
+  const shade = pathHash(branchKey);
+  const lightness = 35 + shade * 35; // 35%-70%
+  return `hsl(${hue}, 70%, ${lightness}%)`;
+}
+
+function setupControls() {
+  const md = maxDepth(tree);
+  visibleDepths = new Set(Array.from({length: md+1}, (_,i)=>i));
+  const el = document.getElementById('depthControls');
+  el.innerHTML = '<div style="margin-top:10px;font-weight:bold;">Depth levels</div>';
+  for (let i = 0; i <= md; i++) {
+    const lbl = document.createElement('label');
+    lbl.innerHTML = `<input type="checkbox" checked data-depth="${i}"> Level ${i}`;
+    lbl.querySelector('input').onchange = e => {
+      const d = parseInt(e.target.dataset.depth);
+      if (e.target.checked) visibleDepths.add(d); else visibleDepths.delete(d);
+      draw();
+    };
+    el.appendChild(lbl);
+  }
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '<div style="font-weight:bold;margin-bottom:4px;">Hue = depth</div>' +
+    Array.from({length: md+1}, (_,i) =>
+      `<div><span class="swatch" style="background:hsl(${DEPTH_HUES[i % DEPTH_HUES.length]},70%,55%)"></span>Level ${i}</div>`
+    ).join('');
+  document.getElementById('stats').textContent = `Total nodes: ${countNodes(tree)}\nMax depth: ${md}`;
+}
+
+function draw() {
+  if (!img) return;
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.drawImage(img, 0, 0);
+  if (!tree) return;
+  drawNode(tree, 0);
+}
+
+function drawNode(node, depth) {
+  if (visibleDepths.has(depth)) {
+    const [x,y,w,h] = node.bbox;
+    const color = colorForNode(node, depth);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = fillAlpha;
+    ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1, 2.5 - depth * 0.3);
+    ctx.strokeRect(x, y, w, h);
+  }
+  (node.children||[]).forEach(c => drawNode(c, depth+1));
+}
+
+canvas.onclick = e => {
+  if (!tree) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  let best = null, bestArea = Infinity;
+  function search(node, depth) {
+    const [bx,by,bw,bh] = node.bbox;
+    if (x>=bx && x<=bx+bw && y>=by && y<=by+bh) {
+      const area = bw*bh;
+      if (area < bestArea) { best = {node, depth}; bestArea = area; }
+    }
+    (node.children||[]).forEach(c => search(c, depth+1));
+  }
+  search(tree, 0);
+  if (best) {
+    document.getElementById('info').textContent =
+      `depth: ${best.depth}\ntag: ${best.node.tag}\nrole: ${best.node.role}\nbbox: ${best.node.bbox}\ntext: ${best.node.text}\nchildren: ${(best.node.children||[]).length}\npath: ${best.node._path}`;
+  }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+[
+  {
+    "url": "https://www.nytimes.com",
+    "ok": true,
+    "nodeCount": 541,
+    "outDir": "out/www.nytimes.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.bbc.com/news",
+    "ok": true,
+    "nodeCount": 230,
+    "outDir": "out/www.bbc.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.theverge.com",
+    "ok": true,
+    "nodeCount": 1320,
+    "outDir": "out/www.theverge.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.amazon.com",
+    "ok": true,
+    "nodeCount": 9,
+    "outDir": "out/www.amazon.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.etsy.com",
+    "ok": false,
+    "error": "Empty tree after pruning -- likely shadow DOM, bot wall, or blank render. Check a manual screenshot."
+  },
+  {
+    "url": "https://www.ebay.com",
+    "ok": true,
+    "nodeCount": 845,
+    "outDir": "out/www.ebay.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.notion.so",
+    "ok": false,
+    "error": "Empty tree after pruning -- likely shadow DOM, bot wall, or blank render. Check a manual screenshot."
+  },
+  {
+    "url": "https://stripe.com/docs",
+    "ok": true,
+    "nodeCount": 475,
+    "outDir": "out/stripe.com__aHR0cHM6"
+  },
+  {
+    "url": "https://trello.com",
+    "ok": true,
+    "nodeCount": 174,
+    "outDir": "out/trello.com__aHR0cHM6"
+  },
+  {
+    "url": "https://medium.com",
+    "ok": true,
+    "nodeCount": 16,
+    "outDir": "out/medium.com__aHR0cHM6"
+  },
+  {
+    "url": "https://wordpress.com",
+    "ok": true,
+    "nodeCount": 199,
+    "outDir": "out/wordpress.com__aHR0cHM6"
+  },
+  {
+    "url": "https://substack.com",
+    "ok": false,
+    "error": "Empty tree after pruning -- likely shadow DOM, bot wall, or blank render. Check a manual screenshot."
+  },
+  {
+    "url": "https://developer.mozilla.org",
+    "ok": true,
+    "nodeCount": 219,
+    "outDir": "out/developer.mozilla.org__aHR0cHM6"
+  },
+  {
+    "url": "https://docs.python.org",
+    "ok": true,
+    "nodeCount": 197,
+    "outDir": "out/docs.python.org__aHR0cHM6"
+  },
+  {
+    "url": "https://react.dev",
+    "ok": true,
+    "nodeCount": 600,
+    "outDir": "out/react.dev__aHR0cHM6"
+  },
+  {
+    "url": "https://www.reddit.com",
+    "ok": true,
+    "nodeCount": 7,
+    "outDir": "out/www.reddit.com__aHR0cHM6"
+  },
+  {
+    "url": "https://news.ycombinator.com",
+    "ok": true,
+    "nodeCount": 416,
+    "outDir": "out/news.ycombinator.com__aHR0cHM6"
+  },
+  {
+    "url": "https://stackoverflow.com",
+    "ok": true,
+    "nodeCount": 14,
+    "outDir": "out/stackoverflow.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.irs.gov",
+    "ok": true,
+    "nodeCount": 318,
+    "outDir": "out/www.irs.gov__aHR0cHM6"
+  },
+  {
+    "url": "https://www.usa.gov",
+    "ok": true,
+    "nodeCount": 198,
+    "outDir": "out/www.usa.gov__aHR0cHM6"
+  },
+  {
+    "url": "https://www.gov.uk",
+    "ok": true,
+    "nodeCount": 290,
+    "outDir": "out/www.gov.uk__aHR0cHM6"
+  },
+  {
+    "url": "https://www.airbnb.com",
+    "ok": false,
+    "error": "Empty tree after pruning -- likely shadow DOM, bot wall, or blank render. Check a manual screenshot."
+  },
+  {
+    "url": "https://www.booking.com",
+    "ok": true,
+    "nodeCount": 1205,
+    "outDir": "out/www.booking.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.united.com",
+    "ok": false,
+    "error": "Empty tree after pruning -- likely shadow DOM, bot wall, or blank render. Check a manual screenshot."
+  },
+  {
+    "url": "https://twitter.com",
+    "ok": true,
+    "nodeCount": 78,
+    "outDir": "out/twitter.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.linkedin.com",
+    "ok": true,
+    "nodeCount": 200,
+    "outDir": "out/www.linkedin.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.pinterest.com",
+    "ok": true,
+    "nodeCount": 310,
+    "outDir": "out/www.pinterest.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.figma.com",
+    "ok": true,
+    "nodeCount": 416,
+    "outDir": "out/www.figma.com__aHR0cHM6"
+  },
+  {
+    "url": "https://linear.app",
+    "ok": true,
+    "nodeCount": 1180,
+    "outDir": "out/linear.app__aHR0cHM6"
+  },
+  {
+    "url": "https://www.spotify.com",
+    "ok": true,
+    "nodeCount": 108,
+    "outDir": "out/www.spotify.com__aHR0cHM6"
+  },
+  {
+    "url": "https://www.youtube.com",
+    "ok": false,
+    "error": "Empty tree after pruning -- likely shadow DOM, bot wall, or blank render. Check a manual screenshot."
+  },
+  {
+    "url": "https://www.chess.com",
+    "ok": true,
+    "nodeCount": 138,
+    "outDir": "out/www.chess.com__aHR0cHM6"
+  },
+  {
+    "url": "https://animepahe.ru",
+    "ok": false,
+    "error": "Empty tree after pruning -- likely shadow DOM, bot wall, or blank render. Check a manual screenshot."
+  }
+]
