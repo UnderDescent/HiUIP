@@ -1,5 +1,5 @@
 // scrape_dom_tree.js
-// Usage: node scrape_dom_tree.js <url> [maxDepth]
+// Usage: node scrape_dom_tree.js <url> [maxDepth] [outRoot]
 //
 // Setup (one-time):
 //   npm init -y
@@ -16,6 +16,7 @@ const { scrapeUrl } = require('./scraper_core');
 
 const url = process.argv[2];
 const maxDepth = process.argv[3] ? parseInt(process.argv[3], 10) : null;
+const outRoot = process.argv[4] || 'out';
 
 if (!url) {
     console.error('Usage: node scrape_dom_tree.js <url> [maxDepth]');
@@ -24,7 +25,7 @@ if (!url) {
 
 async function main() {
     const browser = await chromium.launch();
-    const result = await scrapeUrl(browser, url, 'out', maxDepth, 25000);
+    const result = await scrapeUrl(browser, url, outRoot, maxDepth, 25000);
     await browser.close();
 
     if (result.ok) {

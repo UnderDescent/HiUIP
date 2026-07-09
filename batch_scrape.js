@@ -1,5 +1,5 @@
 // batch_scrape.js
-// Usage: node batch_scrape.js urls.txt [maxDepth]
+// Usage: node batch_scrape.js urls.txt [maxDepth] [outRoot]
 //
 // Reads a plain-text file (one URL per line, blank lines ignored),
 // scrapes each one sequentially, and writes a run_log.json summary
@@ -12,6 +12,7 @@ const { scrapeUrl } = require('./scraper_core');
 
 const urlFile = process.argv[2];
 const maxDepth = process.argv[3] ? parseInt(process.argv[3], 10) : null;
+const outRoot = process.argv[4] || 'out';
 
 if (!urlFile) {
   console.error('Usage: node batch_scrape.js urls.txt [maxDepth]');
@@ -23,10 +24,10 @@ const urls = fs.readFileSync(urlFile, 'utf8')
   .map((l) => l.trim())
   .filter((l) => l && !l.startsWith('#'));
 
-const OUT_ROOT = 'out';
 const RETRIES = 1; // retry once on failure before giving up
 
 async function main() {
+  fs.mkdirSync(outRoot, { recursive: true });
   const browser = await chromium.launch();
   const results = [];
 
@@ -37,7 +38,7 @@ async function main() {
     let attempt = 0;
     let result;
     while (attempt <= RETRIES) {
-      result = await scrapeUrl(browser, url, OUT_ROOT, maxDepth, 25000);
+      result = await scrapeUrl(browser, url, outRoot, maxDepth, 25000);
       if (result.ok) break;
       attempt++;
       if (attempt <= RETRIES) console.log(`  retry ${attempt}...`);
@@ -56,7 +57,7 @@ async function main() {
   const succeeded = results.filter((r) => r.ok).length;
   const failed = results.filter((r) => !r.ok);
 
-  fs.writeFileSync(path.join(OUT_ROOT, 'run_log.json'), JSON.stringify(results, null, 2));
+  fs.writeFileSync(path.join(outRoot, 'run_log.json'), JSON.stringify(results, null, 2));
 
   console.log('\n=== DONE ===');
   console.log(`${succeeded}/${urls.length} succeeded`);
@@ -64,7 +65,7 @@ async function main() {
     console.log('Failed URLs:');
     failed.forEach((r) => console.log(`  ${r.url} -- ${r.error}`));
   }
-  console.log('Full log written to out/run_log.json');
+  console.log(`Full log written to ${path.join(outRoot, 'run_log.json')}`);
 }
 
 main();

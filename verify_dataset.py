@@ -43,7 +43,7 @@ class Report:
 
 def load_json(path, report, label):
     try:
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         report.error(f"{label} is missing: {path}")
@@ -55,7 +55,7 @@ def load_json(path, report, label):
 def load_jsonl(path, report, label):
     rows = []
     try:
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             for line_no, line in enumerate(f, 1):
                 if not line.strip():
                     report.warn(f"{label}:{line_no} is blank")

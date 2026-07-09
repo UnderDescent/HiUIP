@@ -38,7 +38,7 @@ def get_device():
 
 def load_pairs(path, max_pairs=None):
     pairs = []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             pairs.append(json.loads(line))
     random.seed(42)

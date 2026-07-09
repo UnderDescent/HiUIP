@@ -4,6 +4,7 @@
 *.pt
 *.bin
 sam2_finetuned*/
+sam2_direct_children*/
 sam3/
 
 # Data files (optional - remove lines if you want to commit these)
@@ -11,6 +12,13 @@ sam3/
 train_sites.json
 eval_sites.json
 urls.txt
+data_import/
+out/
+artifacts/
+*.zip
+
+# Dependencies
+node_modules/
 
 # Python
 __pycache__/

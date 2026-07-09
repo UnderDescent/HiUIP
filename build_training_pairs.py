@@ -86,7 +86,7 @@ def main():
 
     out_dir, sites_file, output_file = sys.argv[1], sys.argv[2], sys.argv[3]
 
-    with open(sites_file) as f:
+    with open(sites_file, encoding="utf-8") as f:
         sites = json.load(f)
 
     random.seed(42)
@@ -102,7 +102,7 @@ def main():
             skipped += 1
             continue
 
-        with open(tree_path) as f:
+        with open(tree_path, encoding="utf-8") as f:
             tree = json.load(f)
 
         if tree is None:
@@ -115,7 +115,7 @@ def main():
         all_pairs.extend(pairs)
         print(f"{site}: {len(pairs)} pairs")
 
-    with open(output_file, "w") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         for p in all_pairs:
             f.write(json.dumps(p) + "\n")
 
