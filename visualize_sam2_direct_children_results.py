@@ -65,9 +65,11 @@ def crop_parent_image(sample):
     return image.crop((x, y, x + w, y + h))
 
 
-def point_for_box(box):
+def point_for_box(box, rng):
     x, y, w, h = box
-    return [round(x + w * 0.5, 1), round(y + h * 0.5, 1)]
+    px = x + rng.uniform(0.2, 0.8) * w
+    py = y + rng.uniform(0.2, 0.8) * h
+    return [round(px, 1), round(py, 1)]
 
 
 def box_to_mask(box, img_w, img_h):
@@ -159,9 +161,9 @@ def overlay_mask(image, mask, color=(255, 59, 48), alpha=90):
     return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
 
 
-def render_result(sample, model, processor, device, output_path):
+def render_result(sample, model, processor, device, gt_output_path, pred_output_path, rng):
     crop = crop_parent_image(sample)
-    point = point_for_box(sample["target_box"])
+    point = point_for_box(sample["target_box"], rng)
     pred_mask = forward_one(model, processor, crop, point, device)
     pred_box = mask_to_box(pred_mask)
 
@@ -172,18 +174,12 @@ def render_result(sample, model, processor, device, output_path):
 
     pred_panel = overlay_mask(crop, pred_mask)
     pred_draw = ImageDraw.Draw(pred_panel)
-    draw_box(pred_draw, sample["target_box"], GT_COLOR, "gt")
     if pred_box:
         draw_box(pred_draw, pred_box, PRED_COLOR, "pred")
     draw_point(pred_draw, point)
 
-    gap = 16
-    width = gt_panel.width + pred_panel.width + gap
-    height = max(gt_panel.height, pred_panel.height)
-    result = Image.new("RGB", (width, height), "white")
-    result.paste(gt_panel, (0, 0))
-    result.paste(pred_panel, (gt_panel.width + gap, 0))
-    result.save(output_path)
+    gt_panel.save(gt_output_path)
+    pred_panel.save(pred_output_path)
 
     iou = mask_iou(pred_mask, sample["target_box"], crop.width, crop.height)
     box_iou = box_iou_xywh(pred_box, sample["target_box"]) if pred_box else 0.0
@@ -217,10 +213,20 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     rows = []
+    rng = random.Random(args.seed)
     for index, sample in enumerate(samples, 1):
-        filename = f"result_{index:03d}.png"
-        metrics = render_result(sample, model, processor, device, output_dir / filename)
-        row = {**sample, **metrics, "filename": filename}
+        gt_filename = f"result_{index:03d}_gt.png"
+        pred_filename = f"result_{index:03d}_pred.png"
+        metrics = render_result(
+            sample,
+            model,
+            processor,
+            device,
+            output_dir / gt_filename,
+            output_dir / pred_filename,
+            rng,
+        )
+        row = {**sample, **metrics, "gt_filename": gt_filename, "pred_filename": pred_filename}
         rows.append(row)
         print(
             f"{index:03d}/{len(samples)} IoU={metrics['mask_iou']:.3f} "
@@ -246,8 +252,10 @@ def main():
   <style>
     body { font: 14px system-ui, sans-serif; margin: 24px; color: #1f2328; }
     .summary { margin-bottom: 18px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(620px, 1fr)); gap: 18px; }
     .card { border: 1px solid #d0d7de; border-radius: 8px; padding: 12px; }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+    .panel-title { font-size: 12px; font-weight: 700; margin: 0 0 6px; color: #57606a; text-transform: uppercase; }
     img { display: block; max-width: 100%; height: auto; border: 1px solid #d8dee4; }
     h2 { font-size: 15px; margin: 0 0 8px; }
     p { margin: 8px 0 0; color: #57606a; }
@@ -257,7 +265,7 @@ def main():
 """)
         f.write("<h1>SAM2 Direct-Child Eval Results</h1>\n")
         f.write(
-            f"<p class=\"summary\">Left: ground truth. Right: prediction overlay. "
+            f"<p class=\"summary\">Left: ground truth only. Right: prediction only. "
             f"Mean mask IoU: {mean_iou:.4f}; mean box IoU: {mean_box_iou:.4f}; "
             f"examples: {len(rows)}.</p>\n"
         )
@@ -269,7 +277,12 @@ def main():
             )
             f.write("<section class=\"card\">\n")
             f.write(f"<h2>{html.escape(title)}</h2>\n")
-            f.write(f"<img src=\"{html.escape(row['filename'])}\" alt=\"{html.escape(title)}\">\n")
+            f.write("<div class=\"pair\">\n")
+            f.write("<div><p class=\"panel-title\">Ground truth</p>\n")
+            f.write(f"<img src=\"{html.escape(row['gt_filename'])}\" alt=\"{html.escape(title)} ground truth\"></div>\n")
+            f.write("<div><p class=\"panel-title\">Prediction</p>\n")
+            f.write(f"<img src=\"{html.escape(row['pred_filename'])}\" alt=\"{html.escape(title)} prediction\"></div>\n")
+            f.write("</div>\n")
             f.write(
                 f"<p>mask IoU: {row['mask_iou']:.3f}; box IoU: {row['box_iou']:.3f}; "
                 f"crop: {row['crop_size']}; point: {row['point']}</p>\n"

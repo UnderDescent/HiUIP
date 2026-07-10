@@ -13,6 +13,7 @@ same object, while the rest of the parent crop is background for that prompt.
 import argparse
 import json
 import random
+import time
 from pathlib import Path
 
 import numpy as np
@@ -134,6 +135,20 @@ def forward_one(model, processor, image, points, labels, device):
     return outputs, inputs
 
 
+def forward_batch(model, processor, batch_items, device):
+    images = [item["image"] for item in batch_items]
+    input_points = [[item["points"]] for item in batch_items]
+    input_labels = [[item["labels"]] for item in batch_items]
+    inputs = processor(
+        images=images,
+        input_points=input_points,
+        input_labels=input_labels,
+        return_tensors="pt",
+    ).to(device)
+    outputs = model(**inputs, multimask_output=False)
+    return outputs, inputs
+
+
 def dice_loss(pred_logits, target, eps=1e-6):
     pred = torch.sigmoid(pred_logits)
     intersection = (pred * target).sum()
@@ -151,6 +166,25 @@ def compute_loss(outputs, target_box, img_w, img_h, device):
     ).squeeze()
     bce = F.binary_cross_entropy_with_logits(pred_logits, target_resized)
     return bce + dice_loss(pred_logits, target_resized)
+
+
+def compute_batch_loss(outputs, batch_items, device):
+    pred_logits = outputs.pred_masks.squeeze(2).squeeze(1)
+    losses = []
+    for index, item in enumerate(batch_items):
+        full_res_mask = box_to_mask(
+            item["sample"]["target_box"],
+            item["image"].width,
+            item["image"].height,
+        ).to(device)
+        target_resized = F.interpolate(
+            full_res_mask[None, None, :, :],
+            size=pred_logits.shape[-2:],
+            mode="nearest",
+        ).squeeze()
+        bce = F.binary_cross_entropy_with_logits(pred_logits[index], target_resized)
+        losses.append(bce + dice_loss(pred_logits[index], target_resized))
+    return torch.stack(losses).mean()
 
 
 def compute_iou(outputs, inputs, processor, target_box, img_w, img_h):
@@ -201,6 +235,11 @@ def evaluate(model, processor, samples, device, label):
     return mean_iou
 
 
+def make_batches(samples, batch_size):
+    for start in range(0, len(samples), batch_size):
+        yield samples[start:start + batch_size]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--train", required=True)
@@ -215,7 +254,9 @@ def main():
     parser.add_argument("--cache_dir", default="data_import/hf_cache")
     parser.add_argument("--negative_siblings", type=int, default=0)
     parser.add_argument("--negative_background", type=int, default=0)
+    parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--log_every", type=int, default=20)
+    parser.add_argument("--save_every_steps", type=int, default=0)
     args = parser.parse_args()
 
     random.seed(42)
@@ -247,27 +288,76 @@ def main():
         model.train()
         random.shuffle(train_samples)
         running_loss = 0.0
-        for sample in train_samples:
-            image = crop_parent_image(sample)
-            points, labels = build_prompt(
-                sample,
-                image.width,
-                image.height,
-                args.negative_siblings,
-                args.negative_background,
-            )
-            outputs, _ = forward_one(model, processor, image, points, labels, device)
-            loss = compute_loss(outputs, sample["target_box"], image.width, image.height, device)
+        running_items = 0
+        epoch_start_time = time.time()
+        next_save_step = args.save_every_steps if args.save_every_steps else None
+        for batch_samples in make_batches(train_samples, max(1, args.batch_size)):
+            batch_items = []
+            for sample in batch_samples:
+                image = crop_parent_image(sample)
+                points, labels = build_prompt(
+                    sample,
+                    image.width,
+                    image.height,
+                    args.negative_siblings,
+                    args.negative_background,
+                )
+                batch_items.append({
+                    "sample": sample,
+                    "image": image,
+                    "points": points,
+                    "labels": labels,
+                })
+
+            if len(batch_items) == 1:
+                item = batch_items[0]
+                outputs, _ = forward_one(
+                    model,
+                    processor,
+                    item["image"],
+                    item["points"],
+                    item["labels"],
+                    device,
+                )
+                loss = compute_loss(
+                    outputs,
+                    item["sample"]["target_box"],
+                    item["image"].width,
+                    item["image"].height,
+                    device,
+                )
+            else:
+                outputs, _ = forward_batch(model, processor, batch_items, device)
+                loss = compute_batch_loss(outputs, batch_items, device)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.item()
-            step += 1
+            running_loss += loss.item() * len(batch_items)
+            running_items += len(batch_items)
+            step += len(batch_items)
             if step % args.log_every == 0:
-                print(f"epoch {epoch + 1} step {step}: loss={running_loss / args.log_every:.4f}")
+                elapsed = max(1e-6, time.time() - epoch_start_time)
+                seen = min(step, len(train_samples))
+                rate = seen / elapsed
+                remaining = max(0, len(train_samples) - seen)
+                eta_minutes = remaining / max(1e-6, rate) / 60
+                print(
+                    f"epoch {epoch + 1}/{args.epochs} "
+                    f"train {seen}/{len(train_samples)} ({100 * seen / max(1, len(train_samples)):.1f}%) "
+                    f"loss={running_loss / max(1, running_items):.4f} "
+                    f"speed={rate:.1f} obj/s eta={eta_minutes:.1f}m",
+                    flush=True,
+                )
                 running_loss = 0.0
+                running_items = 0
+            if next_save_step is not None and step >= next_save_step:
+                checkpoint_dir = Path(f"{args.output_dir}_step{next_save_step}")
+                model.save_pretrained(checkpoint_dir)
+                processor.save_pretrained(checkpoint_dir)
+                print(f"Saved intermediate checkpoint to {checkpoint_dir}", flush=True)
+                next_save_step += args.save_every_steps
 
     print("\n=== Fine-tuned evaluation ===")
     finetuned_iou = evaluate(model, processor, eval_samples, device, "fine-tuned")
